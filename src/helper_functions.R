@@ -7,47 +7,48 @@ gg_color_hue <- function(n) {
   hcl(h = hues, l = 65, c = 100)[1:n]
 }
 
-list <- structure(NA,class="result")
-"[<-.result" <- function(x,...,value) {
+# Changed list to result_list; creating this structure is awesome & super useful, 
+# but naming it "list" and overwriting native list is confusing -KK
+result_list <- structure(NA, class = "result")
+
+"[<-.result" <- function(x, ..., value) {
   args <- as.list(match.call())
-  args <- args[-c(1:2,length(args))]
+  args <- args[-c(1:2, length(args))]
   length(value) <- length(args)
-  for(i in seq(along=args)) {
+  for(i in seq(along.with = args)) {
     a <- args[[i]]
-    if(!missing(a)) eval.parent(substitute(a <- v,list(a=a,v=value[[i]])))
+    if(!missing(a)) {
+      eval.parent(substitute(a <- v,
+                             list(a = a, v = value[[i]])))
+    } 
   }
   x
 }
 
-
-get_values_from_list <- function(list, name_of_value, FUN=NULL, default = NULL, concat_function="cbind")
-{
+get_values_from_list <- function(list, name_of_value, 
+                                 FUN = NULL, default = NULL, 
+                                 concat_function = "cbind") {
   concat_function <- match.fun(concat_function)
   res <- c()
-  for (i in 1:length(list))
-  {
-    if (!is.null(FUN))
-    {
+  for (i in 1:length(list)) {
+    if (!is.null(FUN)) {
       FUN <- match.fun(FUN)
       value <- sapply(list[[i]][names(list[[i]]) == name_of_value], FUN)
-      
-      if (is.null(value[[1]]) & !is.null(default))
-      {
+
+      if (is.null(value[[1]]) & !is.null(default)) {
         value[[1]] <- default
       }
       res <- concat_function(res, value)
-    } else
-    {
-      res <- concat_function(res, unlist(list[[i]][names(list[[i]]) == name_of_value]))
+    } else {
+      res <- concat_function(res, 
+                             unlist(list[[i]][names(list[[i]]) == name_of_value]))
     }
   }
-  
+
   return(res)
 }
 
-
-toVerticalMatrix <- function(L)
-{
+toVerticalMatrix <- function(L) {
   if (is.vector(L))
     return(matrix(L, ncol=1))
   else 
@@ -55,30 +56,24 @@ toVerticalMatrix <- function(L)
 }
 
 
-reset_parallize <- function()
-{
+reset_parallize <- function() {
   closeAllConnections()
   cl <- makeCluster(3)
   registerDoParallel(cl)
 }
 
-IgnoreVectorOrMatrix <- function(x, FUN)
-{
-  if (is.vector(x))
-  {
+IgnoreVectorOrMatrix <- function(x, FUN) {
+  if (is.vector(x)) {
     return(x)
   } else if (is.matrix(x) | is.data.frame(x)) {
     FUN <- match.fun(FUN)
     return(FUN(x))
-  } else
-  {
+  } else  {
     stop(paste("Unknown type of data:", head(x)))
   }    
 }
 
-
-
-get_sliding_window_data <- function (data, shift, gap = 1) {
+get_sliding_window_data <- function(data, shift, gap = 1) {
   if (is.null(gap)) {
     gap = 1
   }
@@ -112,15 +107,12 @@ merge_data_chunks <- function (vcfData) {
   return(vcf)
 }
 
-get_noise_sig <- function(noise_sig)
-{
-  if (is.null(noise_sig))
-  { 
+get_noise_sig <- function(noise_sig) {
+  if (is.null(noise_sig))   { 
     return(c())
   }
 
-  if (noise_sig == "uniform")
-  {
+  if (noise_sig == "uniform")   {
     noise = rep(1/96, 96)
     return(noise)
   }
@@ -129,39 +121,36 @@ get_noise_sig <- function(noise_sig)
   return(c())
 }
 
-get_signatures_for_current_sample <- function (id, active_signatures.our_samples, alex, noise_sig) {
-  if (grepl("simulation([\\d]*)", id))
-  {
+get_signatures_for_current_sample <- 
+  function(id, active_signatures.our_samples, alex, noise_sig) {
+  if (grepl("simulation([\\d]*)", id)) {
     num <- as.numeric(gsub("simulation([\\d]*)", "\\1", id))
     active_sigs <- sapply(unlist(read.table(paste0(DIR_RESULTS, "simulation", num, "/true_mixture_sigs.txt"), header=F)), toString)
     alex.t <- alex[,active_sigs]
     return(list(alex.t, "simulation", "simulation"))
   }
   
-  current_type <- active_signatures.our_samples[active_signatures.our_samples$ID == id,]
+  current_type <- 
+    active_signatures.our_samples[active_signatures.our_samples$ID == id,]
   # If the known signature table does not contain this cancer type, skip this tumor sample
-  if (nrow(current_type) == 0)
-  {
+  if (nrow(current_type) == 0) {
     print(paste("Skipping file", id, "... : no such sample in active sigs table"))
     return(NULL)
   }
   
-  if (is.na(current_type$Name))
-  {
+  if (is.na(current_type$Name)) {
     print(paste("Skipping file", id, "with type", current_type$tumor_type, "...: no cancer type name"))
     return(NULL)
   }
   matched_type <- current_type$Name
   signature_indices <- which(as.logical(current_type[,4:ncol(current_type)]))
-  if ("SNPs" %in% colnames(alex))
-  {
+  if ("SNPs" %in% colnames(alex)) {
     alex <- alex[,-which(colnames(alex) == "SNPs")]
   }
   alex.t <- toVerticalMatrix(alex[,signature_indices])
   colnames(alex.t) <- colnames(alex)[signature_indices]
 
-  if (!is.null(noise_sig))
-  {
+  if (!is.null(noise_sig)) {
     noise_sig_distr <- get_noise_sig(noise_sig)
     alex.t <- cbind(alex.t, noise_sig_distr)
   }
@@ -169,10 +158,12 @@ get_signatures_for_current_sample <- function (id, active_signatures.our_samples
 }
 
 
-save_data <- function()
-{
-  names_trinucleotide <- read.table(paste0(DIR, "trinucleotide.txt"), stringsAsFactors = F)
-  names_trinucleotide <- apply(names_trinucleotide, 1, function(x) { do.call("paste", c(as.list(x), sep = "_"))})
+save_data <- function() {
+  names_trinucleotide <- 
+    read.table(paste0(DIR, "trinucleotide.txt"), stringsAsFactors = F)
+  names_trinucleotide <- 
+    apply(names_trinucleotide, 1, 
+          function(x) { do.call("paste", c(as.list(x), sep = "_"))})
   
   lydia_signatures = F
   pcawg_signatures = T
@@ -189,7 +180,8 @@ save_data <- function()
     lydia = T
     
     # Signatures from Lydia Liu (OICR)
-    alex <- read.table(paste0(DIR, "/lydia_prostate_cancer_200/NMF_TrinucleotideSignature3wgs.tsv"), header = T)
+    alex <- 
+      read.table(paste0(DIR, "/lydia_prostate_cancer_200/NMF_TrinucleotideSignature3wgs.tsv"), header = T)
     rownames(alex) <- names_trinucleotide
     alex <- alex[,-c(1,2)]
     colnames(alex) <- paste0("L", 1:ncol(alex))
@@ -285,23 +277,27 @@ save_data <- function()
 
 }
 
-toHorizontalMatrix <- function(L)
-{
+toHorizontalMatrix <- function(L) {
   if (is.vector(L))
-    return(matrix(L, nrow=1))
+    return(matrix(L, nrow = 1))
   else 
     return(as.matrix(L))
 }
 
 
-gather_statistics <- function(mixtures, changepoints, tumor_id, dir_name, tumor_type, mixtures.rescaled=NULL)
-{
-  col_names <-  c("tumor_id", "tumor_type", "n_changepoints", "n_total_sigs", "top_signature", "max_change", "sig_with_max_change", "n_sigs_greater_03")
-  if (!is.null(mixtures.rescaled))
-  {
-    col_names <- c(col_names, "top_signature_rescaled", "max_change_rescaled", "sig_with_max_change_rescaled", "n_sigs_greater_03_rescaled")
+gather_statistics <- 
+  function(mixtures, changepoints, tumor_id, dir_name, 
+           tumor_type, mixtures.rescaled = NULL) {
+  col_names <-  c("tumor_id", "tumor_type", "n_changepoints", 
+                  "n_total_sigs", "top_signature", "max_change", 
+                  "sig_with_max_change", "n_sigs_greater_03")
+  
+  if (!is.null(mixtures.rescaled)) {
+    col_names <- c(col_names, 
+                   "top_signature_rescaled", "max_change_rescaled", 
+                   "sig_with_max_change_rescaled", "n_sigs_greater_03_rescaled")
   }
-  summary <- data.frame(matrix(nrow=1, ncol=length(col_names)))
+  summary <- data.frame(matrix(nrow = 1, ncol = length(col_names)))
   colnames(summary) <- col_names
   
   summary$tumor_id <- tumor_id
@@ -310,7 +306,7 @@ gather_statistics <- function(mixtures, changepoints, tumor_id, dir_name, tumor_
   summary$n_total_sigs <- nrow(mixtures)
   
   mean_sigs <- apply(mixtures, 1, mean)
-  max_change_sigs <- apply(mixtures,1,max) - apply(mixtures,1,min)
+  max_change_sigs <- apply(mixtures, 1, max) - apply(mixtures, 1, min)
   sd_sigs <- apply(mixtures, 1, sd)
   
   summary$top_signature <- names(which.max(mean_sigs))
@@ -318,8 +314,7 @@ gather_statistics <- function(mixtures, changepoints, tumor_id, dir_name, tumor_
   summary$sig_with_max_change <- names(which.max(max_change_sigs))
   summary$n_sigs_greater_03 <- toString(names(mean_sigs[mean_sigs > 0.3]))
   
-  if (!is.null(mixtures.rescaled))
-  {
+  if (!is.null(mixtures.rescaled)) {
     mean_sigs.rescaled <- apply(mixtures.rescaled, 1, mean)
     max_change_sigs.rescaled <- apply(mixtures.rescaled,1,max) - apply(mixtures.rescaled,1,min)
     sd_sigs.rescaled <- apply(mixtures.rescaled, 1, sd)
@@ -763,16 +758,27 @@ truncate_to_range <- function(mixtures, range_) {
   return(list(x2,to_leave))
 }
 
-load_annotation <- function(tumortype_file, signature_file, active_signatures_file) {
-  names_trinucleotide <- read.table(paste0("annotation/trinucleotide.txt"), stringsAsFactors = F)
-  names_trinucleotide <- apply(names_trinucleotide, 1, function(x) { do.call("paste", c(as.list(x), sep = "_"))})
+load_annotation <- function(tumortype_file, signature_file, 
+                            active_signatures_file,
+                            trinucleotide_file, 
+                            cancer_type_signatures = TRUE) {
+  
+  names_trinucleotide <- read.table(trinucleotide_file, 
+                                    stringsAsFactors = FALSE)
+
+  names_trinucleotide <- 
+    apply(names_trinucleotide, 1, 
+          function(x) { do.call("paste", c(as.list(x), sep = "_"))})
 
   # Load the tumor types for tumor IDs.
-  tumortypes <- read.delim(tumortype_file, header = T, stringsAsFactors=F)
+  tumortypes <- read.delim(tumortype_file, header = TRUE, 
+                           stringsAsFactors = FALSE)
+  
   colnames(tumortypes) <- c("ID", "tumor_type")
 
   # ALEX DATA
-  # The trinucleotide count matrix will be regressed on the 30 Alexandrov Mutational Signature frequencies
+  # The trinucleotide count matrix will be regressed on the 
+  # 30 Alexandrov Mutational Signature frequencies
   # http://cancer.sanger.ac.uk/cosmic/signatures
   alex <- read.table(paste0(signature_file))
   rownames(alex) <- names_trinucleotide
@@ -780,16 +786,19 @@ load_annotation <- function(tumortype_file, signature_file, active_signatures_fi
 
   if (cancer_type_signatures) {
     # Load active signatures for each tumor type
-    active_signatures <- read.delim(active_signatures_file, stringsAsFactors=F)
+    active_signatures <- read.delim(active_signatures_file, 
+                                    stringsAsFactors = FALSE)
     active_signatures[is.na(active_signatures)] <- 0
+    
     # Removing column "Other.signatures"
-    active_signatures <- active_signatures[, -ncol(active_signatures)]
+    active_signatures_cols <- colnames(active_signatures)
+    active_signatures <- active_signatures[, setdiff(active_signatures_cols,
+                                                     "Other.signatures")]
     
     # Some of the signatures have several types corresponding to them. 
     # The rows which correspond to several tumor types and duplicated in the table.
-    indices_to_duplicate <- which(grepl(",",active_signatures$acronym))
-    while (length(indices_to_duplicate) != 0)
-    {
+    indices_to_duplicate <- which(grepl(",", active_signatures$acronym))
+    while (length(indices_to_duplicate) != 0) {
       index <- indices_to_duplicate[1]
       current_type <- active_signatures[index,]
       trim <- function (x) gsub("^\\s+|\\s+$", "", x)
@@ -802,7 +811,9 @@ load_annotation <- function(tumortype_file, signature_file, active_signatures_fi
       }
       to_add$acronym <- corresponding_tumor_types
       
-      active_signatures <- rbind(active_signatures[1:(index-1),], to_add, active_signatures[(index+1):nrow(active_signatures),])
+      active_signatures <- 
+        rbind(active_signatures[1:(index-1),], to_add, 
+              active_signatures[(index+1):nrow(active_signatures),])
       indices_to_duplicate <- which(grepl(",",active_signatures$acronym))
     }
     active_signatures.our_samples <- merge(tumortypes, active_signatures, by.x="tumor_type", by.y="acronym", all.x=T)
@@ -810,18 +821,27 @@ load_annotation <- function(tumortype_file, signature_file, active_signatures_fi
   } else {
     active_signatures <- NULL
     
-    active_signatures.our_samples <- read.delim(active_signatures_file, stringsAsFactors=F)
+    active_signatures.our_samples <- 
+      read.delim(active_signatures_file, stringsAsFactors = FALSE)
 
-    #active_signatures.our_samples <- read.csv("PCAWG_signatures_in_samples_beta.csv")
-    colnames(active_signatures.our_samples) <- c("tumor_type",  "ID", colnames(active_signatures.our_samples)[3:ncol(active_signatures.our_samples)])
+    colnames(active_signatures.our_samples) <- 
+      c("tumor_type",  "ID", colnames(active_signatures.our_samples)[3:ncol(active_signatures.our_samples)])
 
     # Making the table binary
-    active_signatures.our_samples.data <- active_signatures.our_samples[,3:ncol(active_signatures.our_samples)]
-    active_signatures.our_samples.data[active_signatures.our_samples.data > 0] <- 1
-    colnames(active_signatures.our_samples.data) <- gsub("S.(.*)", "\\1", colnames(active_signatures.our_samples.data))
+    active_signatures.our_samples.data <- 
+      active_signatures.our_samples[,3:ncol(active_signatures.our_samples)]
     
-    active_signatures.our_samples <- cbind(active_signatures.our_samples[,c(1,2)], Name=NA, active_signatures.our_samples.data)
-    active_signatures.our_samples$Name <- sapply(active_signatures.our_samples$tumor_type, toString)
+    active_signatures.our_samples.data[active_signatures.our_samples.data > 0] <- 1
+    
+    colnames(active_signatures.our_samples.data) <- 
+      gsub("S.(.*)", "\\1", colnames(active_signatures.our_samples.data))
+    
+    active_signatures.our_samples <- 
+      cbind(active_signatures.our_samples[,c(1,2)], Name = NA, 
+            active_signatures.our_samples.data)
+    
+    active_signatures.our_samples$Name <- 
+      sapply(active_signatures.our_samples$tumor_type, toString)
   }
 
   return(list(alex, tumortypes, active_signatures, active_signatures.our_samples))

@@ -1,22 +1,36 @@
-# TrackSig (Trackature)
+# TrackSig 
 
-A framework to infer mutational signatures over time.
+This is a fork of the original repository [morrislab/TrackSig](https://github.com/morrislab/TrackSig). I added few scripts and functions to make it easier to run the code on different machines and make it easier to supply the necessary files without having to rewrite header script.
 
-## Background
-Cell processes leave a unique signature of mutation types in cancer genome. Using the mutational signatures, it is possible to infer the fraction of mutations contributed by each cell process. Mutational signatures are represented as multinomial distributions over 96 mutation types. Using our framework Trackature, we can infer mutational signatures changing over time.
+## Original description
+
+**A framework to infer mutational signatures over time.** Cell processes leave a unique signature of mutation types in cancer genome. Using the mutational signatures, it is possible to infer the fraction of mutations contributed by each cell process. Mutational signatures are represented as multinomial distributions over 96 mutation types. Using our framework Trackature, we can infer mutational signatures changing over time.
 
 ## Dependencies
+The dependencies for the package as described in the original repository can be found below. To ease installation process I created a conda specification file that allows creation of the conda environment necessary to run the code. Provided that you have conda installed you can run the following:
+
+```bash
+conda env create -n TrackSig -f src/conda_env.yaml
+```
+
+and then, when you want to run the code you need to activate the environment:
+
+```bash
+conda activate TrackSig
+```
+
+### Original description of the dependencies:
+
 - Python 2.7.9  
   Packages: pyvcf, csv, scipy, numpy  
   Packages can be installed using `pip2 install package_name` command.
   
 - Perl v5.18.2  
-  Packages: Bio::DB::Fasta. Please refer to http://www.cpan.org/modules/INSTALL.html on how to install packages on your machine. On Mac OS and Unix: sudo cpan Bio::DB::Fasta
+  Packages: Bio::DB::Fasta. Please refer to http://www.cpan.org/modules/INSTALL.html on how to install packages on your machine. On Mac OS and Unix: `sudo cpan Bio::DB::Fasta`
   
 - R 3.1.2  
   Packages: reshape2, ggplot2, NMF  
-  R packages can be installed using install.packages("package_name") command.
-
+  R packages can be installed using `install.packages("package_name")` command within R.
 
 ## Input
 - VCF file with point mutations  
@@ -26,6 +40,7 @@ Cell processes leave a unique signature of mutation types in cancer genome. Usin
 Optional:  
 - Sample purity  
   The format is the following: (tab-delimited)
+  
 ```
 samplename	purity
 example	0.7
@@ -42,7 +57,7 @@ chromosome      start   end     total_cn
 ```
 
 ## Usage 
-The commands below assume starting from the 'Trackature' directory. The example.vcf is provided in the repo. Running the code as written below will compute signature trajectories for the example.
+The commands below assume starting from the 'TrackSig' directory. The example.vcf is provided in the repo. Running the code as written below will compute signature trajectories for the example.
 
 ### Generating variant allele frequency estimates
 
@@ -67,6 +82,7 @@ The "samplename" column should match the name of the vcf file. To make use of pu
 ### Making mutation counts
 
 To make mutation counts over 96 mutation types:
+
 ```
 src/make_counts.sh data/example.vcf data/example_vaf.txt
 ```
@@ -79,11 +95,9 @@ Using an `rsync` command to download all the hg19 reference files:
 rsync -avzP rsync://hgdownload.cse.ucsc.edu/goldenPath/hg19/chromosomes/ ./annotation/hg19/
 ```
 
-
-
-
 ### Generating signature trajectories
 To use cancer-type specific signatures, please provide `data/tumortypes.txt` file listing tumor IDs and their cancer types in the format (tab-delimited):
+
 ```
 ID	tumortype
 example	LAML

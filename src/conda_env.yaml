@@ -1,0 +1,15 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=2.7
+  - pyvcf
+  - pip
+  - scipy
+  - numpy
+  - r-base=3
+  - r-reshape2
+  - r-ggplot2
+  - r-nmf
+  - r-logger
+  - perl-bioperl
